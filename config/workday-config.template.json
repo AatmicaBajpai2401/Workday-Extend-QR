@@ -1,0 +1,60 @@
+{
+  "workday": {
+    "orchestrationUrl": "https://your-tenant.workday.com/ccx/api/orchestration/v1/execute",
+    "businessObjectName": "Employee_Data",
+    "apiKey": "YOUR_API_KEY_HERE",
+    "username": "integration_user@tenant",
+    "password": "YOUR_PASSWORD_HERE",
+    "timeout": 30000,
+    "tenant": "your-tenant",
+    "comments": {
+      "orchestrationUrl": "Your Workday orchestration endpoint URL",
+      "businessObjectName": "The name of your Workday business object",
+      "apiKey": "API key for authentication (if using API key auth)",
+      "username": "Integration user username (if using basic auth)",
+      "password": "Integration user password (if using basic auth)",
+      "timeout": "Request timeout in milliseconds",
+      "tenant": "Your Workday tenant name"
+    }
+  },
+  "server": {
+    "port": 3000,
+    "host": "localhost",
+    "comments": {
+      "port": "Port number for the server to listen on",
+      "host": "Host address (use 0.0.0.0 for external access)"
+    }
+  },
+  "qrCode": {
+    "baseUrl": "http://localhost:3000",
+    "size": 300,
+    "errorCorrectionLevel": "M",
+    "comments": {
+      "baseUrl": "The URL that QR codes will point to (update for production)",
+      "size": "QR code size in pixels",
+      "errorCorrectionLevel": "L, M, Q, or H (higher = more error correction)"
+    }
+  },
+  "logging": {
+    "enabled": true,
+    "retentionDays": 30,
+    "comments": {
+      "enabled": "Enable/disable logging",
+      "retentionDays": "Number of days to retain logs"
+    }
+  },
+  "security": {
+    "enableCors": true,
+    "allowedOrigins": ["*"],
+    "rateLimit": {
+      "enabled": false,
+      "maxRequests": 100,
+      "windowMs": 900000
+    },
+    "comments": {
+      "enableCors": "Enable CORS for cross-origin requests",
+      "allowedOrigins": "Array of allowed origins (* for all, or specific domains)",
+      "rateLimit": "Rate limiting configuration to prevent abuse"
+    }
+  }
+}

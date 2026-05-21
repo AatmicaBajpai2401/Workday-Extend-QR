@@ -1,0 +1,34 @@
+{
+  "name": "workday-qr-integration",
+  "version": "1.0.0",
+  "description": "QR Code form submission system integrated with Workday orchestration",
+  "main": "server/mcp-server.js",
+  "scripts": {
+    "start": "node server/mcp-server.js",
+    "dev": "nodemon server/mcp-server.js",
+    "generate-qr": "node generate-qr.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "workday",
+    "qr-code",
+    "form",
+    "integration",
+    "mcp",
+    "orchestration"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
