@@ -149,28 +149,20 @@ async function triggerWorkdayOrchestration(payload) {
             throw new Error('Failed to authenticate with Workday. Please check your credentials.');
         }
 
-        // Prepare headers for Workday Extend IFW orchestration
+        // Prepare headers for Workday Extend orchestration
         const headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': `Bearer ${token}`
         };
 
         console.log('Calling Workday orchestration:', workdayConfig.orchestrationUrl);
-        console.log('Payload:', JSON.stringify(payload, null, 2));
+        console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
-        // Convert payload to URL-encoded format for IFW orchestration
-        const urlEncodedPayload = new URLSearchParams();
-        Object.keys(payload).forEach(key => {
-            urlEncodedPayload.append(key, payload[key]);
-        });
-
-        console.log('URL-encoded payload:', urlEncodedPayload.toString());
-
-        // Call Workday Extend orchestration endpoint
+        // Call Workday Extend orchestration endpoint with JSON payload
         const response = await axios.post(
             workdayConfig.orchestrationUrl,
-            urlEncodedPayload,
+            payload,
             {
                 headers: headers,
                 timeout: workdayConfig.timeout || 30000,
