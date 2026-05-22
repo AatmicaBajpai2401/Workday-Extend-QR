@@ -8,6 +8,7 @@ const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const WorkdayAuth = require('./workday-auth');
 
 // Load configuration
 const configPath = path.join(__dirname, '../config/workday-config.json');
@@ -19,6 +20,9 @@ try {
     console.error('Error loading config file:', error.message);
     console.log('Using default configuration');
 }
+
+// Initialize Workday authentication
+const workdayAuth = new WorkdayAuth(config.workday || {});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,39 +100,27 @@ app.post('/api/submit', async (req, res) => {
 });
 
 /**
- * Transform form data to Workday business object format
+ * Transform form data to Workday Extend orchestration format
  */
 function transformToWorkdayFormat(formData) {
+    // Format for Workday Extend orchestration
     return {
-        businessObject: config.workday?.businessObjectName || 'Employee_Data',
-        data: {
-            Employee_ID: formData.employeeId,
-            Personal_Information: {
-                First_Name: formData.firstName,
-                Last_Name: formData.lastName,
-                Email_Address: formData.email
-            },
-            Employment_Information: {
-                Department: formData.department,
-                Position: formData.position,
-                Start_Date: formData.startDate
-            },
-            Additional_Information: {
-                Notes: formData.notes || '',
-                Submission_Timestamp: formData.timestamp
-            }
-        },
-        metadata: {
-            source: 'QR_Code_Form',
-            submissionMethod: 'MCP_Server',
-            version: '1.0'
-        }
+        employeeId: formData.employeeId,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        department: formData.department,
+        position: formData.position,
+        startDate: formData.startDate,
+        notes: formData.notes || '',
+        submissionTimestamp: formData.timestamp,
+        source: 'QR_Code_Form'
     };
 }
 
 /**
- * Trigger Workday orchestration
- * This function calls the Workday REST API or orchestration endpoint
+ * Trigger Workday Extend orchestration
+ * This function calls the Workday Extend orchestration endpoint
  */
 async function triggerWorkdayOrchestration(payload) {
     const workdayConfig = config.workday || {};
@@ -147,44 +139,73 @@ async function triggerWorkdayOrchestration(payload) {
     }
 
     try {
-        // Prepare authentication
-        const auth = workdayConfig.username && workdayConfig.password
-            ? {
-                username: workdayConfig.username,
-                password: workdayConfig.password
-            }
-            : null;
+        // Get authentication token
+        let token = null;
+        try {
+            token = await workdayAuth.getAccessToken();
+            console.log('Authentication token obtained');
+        } catch (authError) {
+            console.error('Authentication error:', authError.message);
+            throw new Error('Failed to authenticate with Workday. Please check your credentials.');
+        }
 
-        // Call Workday orchestration endpoint
+        // Prepare headers for Workday Extend IFW orchestration
+        const headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        console.log('Calling Workday orchestration:', workdayConfig.orchestrationUrl);
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+
+        // Convert payload to URL-encoded format for IFW orchestration
+        const urlEncodedPayload = new URLSearchParams();
+        Object.keys(payload).forEach(key => {
+            urlEncodedPayload.append(key, payload[key]);
+        });
+
+        console.log('URL-encoded payload:', urlEncodedPayload.toString());
+
+        // Call Workday Extend orchestration endpoint
         const response = await axios.post(
             workdayConfig.orchestrationUrl,
-            payload,
+            urlEncodedPayload,
             {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(workdayConfig.apiKey && { 'Authorization': `Bearer ${workdayConfig.apiKey}` })
-                },
-                ...(auth && { auth }),
-                timeout: workdayConfig.timeout || 30000
+                headers: headers,
+                timeout: workdayConfig.timeout || 30000,
+                validateStatus: function (status) {
+                    return status >= 200 && status < 500; // Don't throw on 4xx errors
+                }
             }
         );
 
-        console.log('Workday orchestration response:', response.status);
+        console.log('Workday orchestration response status:', response.status);
+        console.log('Workday orchestration response:', JSON.stringify(response.data, null, 2));
         
-        return {
-            success: true,
-            submissionId: response.data.id || generateSubmissionId(),
-            workdayResponse: response.data,
-            timestamp: new Date().toISOString()
-        };
+        if (response.status >= 200 && response.status < 300) {
+            return {
+                success: true,
+                submissionId: response.data.id || response.data.instanceId || generateSubmissionId(),
+                workdayResponse: response.data,
+                timestamp: new Date().toISOString()
+            };
+        } else if (response.status === 401) {
+            // Clear token and retry once
+            workdayAuth.clearToken();
+            throw new Error('Authentication failed. Please verify your Workday credentials and API token.');
+        } else {
+            throw new Error(`Workday API error: ${response.status} - ${JSON.stringify(response.data)}`);
+        }
 
     } catch (error) {
         console.error('Workday orchestration error:', error.message);
         
         if (error.response) {
-            throw new Error(`Workday API error: ${error.response.status} - ${error.response.statusText}`);
+            console.error('Error response data:', JSON.stringify(error.response.data, null, 2));
+            throw new Error(`Workday API error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
         } else if (error.request) {
-            throw new Error('No response from Workday - check network connectivity');
+            throw new Error('No response from Workday - check network connectivity and endpoint URL');
         } else {
             throw new Error(`Request setup error: ${error.message}`);
         }
